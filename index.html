@@ -3,100 +3,91 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alexis ❤️ Regine Battle</title>
-
+<title>Alexis ❤️ Regine Game</title>
 <style>
 body{
     margin:0;
     font-family:'Segoe UI',sans-serif;
-    background: linear-gradient(135deg,#ffd6e0,#e0f7fa);
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
+    background:linear-gradient(135deg,#ffd6e8,#e0f7fa);
+    text-align:center;
 }
 .card{
     background:white;
-    width:95%;
-    max-width:420px;
-    padding:25px;
-    border-radius:25px;
-    box-shadow:0 15px 40px rgba(0,0,0,0.15);
-    text-align:center;
-}
-h1{ color:#ff6f91; }
-
-input{
-    width:90%;
-    padding:12px;
-    border-radius:15px;
-    border:1px solid #ddd;
-}
-
-button{
-    margin-top:10px;
-    padding:10px 20px;
-    border:none;
+    margin:20px;
+    padding:20px;
     border-radius:20px;
-    background:#ff6f91;
-    color:white;
-    cursor:pointer;
+    box-shadow:0 10px 25px rgba(0,0,0,0.1);
 }
-
-.choices button{
-    font-size:28px;
+button{
+    padding:12px 18px;
     margin:8px;
-    background:#fce4ec;
-    color:#333;
-}
-
-.hidden{ display:none; }
-
-.message-box{
-    background:#fff0f5;
-    padding:15px;
+    border:none;
     border-radius:15px;
-    margin-top:15px;
-    font-style:italic;
+    background:#ff8fb1;
+    color:white;
+    font-weight:bold;
+    font-size:16px;
+}
+button:hover{
+    background:#ff6f9f;
+}
+.hidden{display:none;}
+.title{
+    font-size:24px;
+    font-weight:bold;
+    margin-top:20px;
+}
+.move-btn{
+    font-size:28px;
+}
+.level{
+    font-weight:bold;
+    margin-top:10px;
 }
 </style>
 </head>
 <body>
 
-<div class="card" id="loginCard">
-    <h1>💕 Alexis & Regine</h1>
-    <input type="password" id="password" placeholder="Enter password">
+<div class="title">💖 Rock Paper Scissors 💖</div>
+
+<!-- LOGIN -->
+<div id="login" class="card">
+    <h3>Login</h3>
+    <input type="password" id="password" placeholder="Enter Password"><br><br>
     <button onclick="login()">Enter</button>
 </div>
 
-<div class="card hidden" id="gameCard">
-    <h1 id="welcomeText"></h1>
+<!-- GAME -->
+<div id="game" class="hidden">
 
+<div class="card">
+    <h3 id="playerName"></h3>
     <div>
-        Alexis: <span id="alexisScore">0</span> |
-        Regine: <span id="regineScore">0</span>
+        <button class="move-btn" onclick="chooseMove('rock')">🪨</button>
+        <button class="move-btn" onclick="chooseMove('paper')">📄</button>
+        <button class="move-btn" onclick="chooseMove('scissors')">✂️</button>
     </div>
-
-    <h3>Choose your move</h3>
-    <div class="choices">
-        <button onclick="chooseMove('rock')">🪨</button>
-        <button onclick="chooseMove('paper')">📄</button>
-        <button onclick="chooseMove('scissors')">✂️</button>
-    </div>
-
-    <div id="status"></div>
-    <div id="result"></div>
-
-    <div class="message-box hidden" id="secretMessage"></div>
-
-    <button onclick="logout()">Logout</button>
 </div>
 
-<!-- Firebase COMPAT version (important) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<div class="card">
+    <h3>Result</h3>
+    <p id="resultText">Waiting for both players...</p>
+</div>
 
-<script>
+<div class="card">
+    <h3>Scoreboard</h3>
+    <p>Alexis: <span id="scoreAlexis">0</span></p>
+    <p>Regine: <span id="scoreRegine">0</span></p>
+    <div class="level" id="levelText">Level 1: Sweet Beginnings 🌸</div>
+</div>
+
+</div>
+
+<!-- Modular Firebase (type=module) -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyA_pYxKXhGmwqnHS6wYl2l22mSCATl0lg4",
   authDomain: "us-only-chat.firebaseapp.com",
@@ -104,108 +95,74 @@ const firebaseConfig = {
   projectId: "us-only-chat",
   storageBucket: "us-only-chat.appspot.com",
   messagingSenderId: "689509504923",
-  appId: "1:689509504923:web:72a642773787d63d67f33e"
+  appId: "1:689509504923:web:72a642773787d63d67f33e",
+  measurementId: "G-N5QNZT9042"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const gameRef = db.ref("coupleBattleStable");
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-let currentUser = "";
-let roundProcessing = false;
+let currentUser = null;
 
 function login(){
     const pass = document.getElementById("password").value;
+    if(pass==="Alexis"){ currentUser="Alexis"; }
+    else if(pass==="Regine"){ currentUser="Regine"; }
+    else { alert("Wrong password 💔"); return; }
 
-    if(pass === "Alexis"){
-        currentUser = "Alexis";
-    } else if(pass === "Regine"){
-        currentUser = "Regine";
-    } else {
-        alert("Wrong password");
-        return;
-    }
-
-    document.getElementById("loginCard").classList.add("hidden");
-    document.getElementById("gameCard").classList.remove("hidden");
-    document.getElementById("welcomeText").innerText = "Welcome " + currentUser + " 💖";
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("game").classList.remove("hidden");
+    document.getElementById("playerName").innerText = "Playing as: " + currentUser;
 }
 
-function chooseMove(choice){
-    gameRef.child("moves/" + currentUser).set(choice);
-    document.getElementById("status").innerText = "Waiting for other player...";
+window.login = login;
+
+function chooseMove(move){
+    set(ref(db,"moves/"+currentUser), move);
+    document.getElementById("resultText").innerText="Waiting for other player...";
 }
 
-gameRef.on("value", snapshot => {
-    const data = snapshot.val() || {};
-    const moves = data.moves || {};
-    const scores = data.scores || {Alexis:0, Regine:0};
+window.chooseMove = chooseMove;
 
-    document.getElementById("alexisScore").innerText = scores.Alexis;
-    document.getElementById("regineScore").innerText = scores.Regine;
+function checkWinner(a,b){
+    if(a===b) return "draw";
+    if((a==="rock" && b==="scissors")||(a==="paper" && b==="rock")||(a==="scissors" && b==="paper")) return "Alexis";
+    else return "Regine";
+}
 
-    if(moves.Alexis && moves.Regine && !roundProcessing){
-        roundProcessing = true;
-        processRound(moves.Alexis, moves.Regine, scores);
+onValue(ref(db,"moves"), async (snapshot)=>{
+    const moves = snapshot.val();
+    if(!moves || !moves.Alexis || !moves.Regine) return;
+
+    const winner = checkWinner(moves.Alexis, moves.Regine);
+
+    let scoreSnap = await get(ref(db,"score"));
+    let scores = scoreSnap.val() || {Alexis:0, Regine:0};
+
+    if(winner==="draw"){ document.getElementById("resultText").innerText="It's a draw 💞"; }
+    else{
+        document.getElementById("resultText").innerText = winner + " wins 💖";
+        scores[winner]++;
+        set(ref(db,"score"), scores);
     }
+
+    set(ref(db,"moves"), {}); // reset moves
 });
 
-function processRound(aMove, rMove, scores){
+onValue(ref(db,"score"), (snapshot)=>{
+    const scores = snapshot.val();
+    if(!scores) return;
+    document.getElementById("scoreAlexis").innerText = scores.Alexis;
+    document.getElementById("scoreRegine").innerText = scores.Regine;
 
-    let winner = "";
+    let total = scores.Alexis + scores.Regine;
+    let levelText="Level 1: Sweet Beginnings 🌸";
+    if(total>=5) levelText="Level 2: Cutie Fighters 💕";
+    if(total>=10) levelText="Level 3: Power Couple 💪💖";
+    if(total>=20) levelText="Level 4: Soulmates 🔥";
+    document.getElementById("levelText").innerText = levelText;
+});
 
-    if(aMove === rMove){
-        document.getElementById("result").innerText = "Tie 😆";
-    } else if(
-        (aMove === "rock" && rMove === "scissors") ||
-        (aMove === "paper" && rMove === "rock") ||
-        (aMove === "scissors" && rMove === "paper")
-    ){
-        scores.Alexis++;
-        winner = "Alexis";
-        document.getElementById("result").innerText = "Alexis Wins 🎉";
-    } else {
-        scores.Regine++;
-        winner = "Regine";
-        document.getElementById("result").innerText = "Regine Wins 👑";
-    }
-
-    gameRef.child("scores").set(scores);
-    gameRef.child("moves").remove();
-
-    unlockMessage(scores, winner);
-
-    setTimeout(()=>{ roundProcessing = false; },1000);
-}
-
-function unlockMessage(scores, winner){
-    const total = scores.Alexis + scores.Regine;
-    const box = document.getElementById("secretMessage");
-    let message = "";
-
-    if(total >= 3){
-        message = "Level 1: I like doing life with you 💛";
-    }
-    if(total >= 6){
-        message = "Level 2: Even your 'too much' is still not enough for me 😌";
-    }
-    if(total >= 10){
-        message = "Level 3: If future chooses us, I will choose you every day.";
-    }
-
-    if(winner === "Regine" && currentUser === "Regine"){
-        message += "\n\nPrivate: I love it when you win. It’s cute 😏💕";
-    }
-
-    if(message !== ""){
-        box.classList.remove("hidden");
-        box.innerText = message;
-    }
-}
-
-function logout(){
-    location.reload();
-}
 </script>
 
 </body>
