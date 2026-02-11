@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alexis ❤️ Regine Battle</title>
+
+<style>
+body{
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    background: linear-gradient(135deg,#ffd6e0,#e0f7fa);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+.card{
+    background:white;
+    width:95%;
+    max-width:420px;
+    padding:25px;
+    border-radius:25px;
+    box-shadow:0 15px 40px rgba(0,0,0,0.15);
+    text-align:center;
+}
+h1{ color:#ff6f91; }
+
+input{
+    width:90%;
+    padding:12px;
+    border-radius:15px;
+    border:1px solid #ddd;
+}
+
+button{
+    margin-top:10px;
+    padding:10px 20px;
+    border:none;
+    border-radius:20px;
+    background:#ff6f91;
+    color:white;
+    cursor:pointer;
+}
+
+.choices button{
+    font-size:28px;
+    margin:8px;
+    background:#fce4ec;
+    color:#333;
+}
+
+.hidden{ display:none; }
+
+.message-box{
+    background:#fff0f5;
+    padding:15px;
+    border-radius:15px;
+    margin-top:15px;
+    font-style:italic;
+}
+
+.reveal{
+    font-size:28px;
+    font-weight:bold;
+    margin-top:10px;
+    color:#6a1b9a;
+}
+</style>
+</head>
+<body>
+
+<audio id="bgMusic" loop>
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_7b1b1f6e77.mp3" type="audio/mpeg">
+</audio>
+
+<div class="card" id="loginCard">
+    <h1>💕 Alexis & Regine</h1>
+    <input type="password" id="password" placeholder="Enter password">
+    <button onclick="login()">Enter</button>
+</div>
+
+<div class="card hidden" id="gameCard">
+    <h1 id="welcomeText"></h1>
+
+    <div>
+        Alexis: <span id="alexisScore">0</span> |
+        Regine: <span id="regineScore">0</span>
+    </div>
+
+    <h3>Choose your move</h3>
+    <div class="choices">
+        <button onclick="choose('rock')">🪨</button>
+        <button onclick="choose('paper')">📄</button>
+        <button onclick="choose('scissors')">✂️</button>
+    </div>
+
+    <div id="countdown" class="reveal"></div>
+    <div id="result"></div>
+
+    <div class="message-box hidden" id="secretMessage"></div>
+
+    <button onclick="logout()">Logout</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA_pYxKXhGmwqnHS6wYl2l22mSCATl0lg4",
+  authDomain: "us-only-chat.firebaseapp.com",
+  databaseURL: "https://us-only-chat-default-rtdb.firebaseio.com/",
+  projectId: "us-only-chat",
+  storageBucket: "us-only-chat.firebasestorage.app",
+  messagingSenderId: "689509504923",
+  appId: "1:689509504923:web:72a642773787d63d67f33e"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const gameRef = db.ref("realPvpGameV3");
+
+let currentUser = "";
+
+function login(){
+    const pass = document.getElementById("password").value;
+
+    if(pass === "Alexis"){
+        currentUser = "Alexis";
+    } else if(pass === "Regine"){
+        currentUser = "Regine";
+    } else {
+        alert("Wrong password");
+        return;
+    }
+
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("gameCard").classList.remove("hidden");
+    document.getElementById("welcomeText").innerText = "Welcome " + currentUser + " 💖";
+
+    document.getElementById("bgMusic").play();
+}
+
+function choose(choice){
+    gameRef.child("moves/" + currentUser).set(choice);
+}
+
+gameRef.on("value", snapshot => {
+    const data = snapshot.val() || {};
+    const moves = data.moves || {};
+    const scores = data.scores || {Alexis:0, Regine:0};
+
+    document.getElementById("alexisScore").innerText = scores.Alexis;
+    document.getElementById("regineScore").innerText = scores.Regine;
+
+    if(moves.Alexis && moves.Regine){
+        dramaticReveal(moves.Alexis, moves.Regine, scores);
+    }
+});
+
+function dramaticReveal(aMove, rMove, scores){
+    let count = 3;
+    const cd = document.getElementById("countdown");
+    cd.innerText = count;
+
+    const interval = setInterval(()=>{
+        count--;
+        if(count > 0){
+            cd.innerText = count;
+        } else {
+            clearInterval(interval);
+            cd.innerText = "Reveal!";
+            determineWinner(aMove, rMove, scores);
+        }
+    },700);
+}
+
+function determineWinner(aMove, rMove, scores){
+    let winner = "";
+
+    if(aMove === rMove){
+        document.getElementById("result").innerText = "It's a Tie 😆";
+    } else if(
+        (aMove === "rock" && rMove === "scissors") ||
+        (aMove === "paper" && rMove === "rock") ||
+        (aMove === "scissors" && rMove === "paper")
+    ){
+        scores.Alexis++;
+        winner = "Alexis";
+        document.getElementById("result").innerText = "Alexis Wins 🎉";
+    } else {
+        scores.Regine++;
+        winner = "Regine";
+        document.getElementById("result").innerText = "Regine Wins 👑";
+    }
+
+    gameRef.child("scores").set(scores);
+    gameRef.child("moves").remove();
+
+    unlockMessages(scores, winner);
+}
+
+function unlockMessages(scores, winner){
+    const total = scores.Alexis + scores.Regine;
+    const box = document.getElementById("secretMessage");
+    let message = "";
+
+    if(total >= 3){
+        message = "Level 1: I like doing life with you 💛";
+    }
+    if(total >= 6){
+        message = "Level 2: Even your 'too much' is still not enough for me 😌";
+    }
+    if(total >= 10){
+        message = "Level 3: If future chooses us, I will choose you every day.";
+    }
+
+    if(winner === "Regine" && currentUser === "Regine"){
+        message += "\n\nPrivate: I secretly love it when you win. It’s cute 😏💕";
+    }
+
+    if(message !== ""){
+        box.classList.remove("hidden");
+        box.innerText = message;
+    }
+}
+
+function logout(){
+    location.reload();
+}
+</script>
+
+</body>
+</html>
