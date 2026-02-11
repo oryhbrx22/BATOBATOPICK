@@ -59,20 +59,9 @@ button{
     margin-top:15px;
     font-style:italic;
 }
-
-.reveal{
-    font-size:28px;
-    font-weight:bold;
-    margin-top:10px;
-    color:#6a1b9a;
-}
 </style>
 </head>
 <body>
-
-<audio id="bgMusic" loop>
-  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_7b1b1f6e77.mp3" type="audio/mpeg">
-</audio>
 
 <div class="card" id="loginCard">
     <h1>💕 Alexis & Regine</h1>
@@ -90,12 +79,12 @@ button{
 
     <h3>Choose your move</h3>
     <div class="choices">
-        <button onclick="choose('rock')">🪨</button>
-        <button onclick="choose('paper')">📄</button>
-        <button onclick="choose('scissors')">✂️</button>
+        <button onclick="chooseMove('rock')">🪨</button>
+        <button onclick="chooseMove('paper')">📄</button>
+        <button onclick="chooseMove('scissors')">✂️</button>
     </div>
 
-    <div id="countdown" class="reveal"></div>
+    <div id="status"></div>
     <div id="result"></div>
 
     <div class="message-box hidden" id="secretMessage"></div>
@@ -103,25 +92,27 @@ button{
     <button onclick="logout()">Logout</button>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<!-- Firebase COMPAT version (important) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyA_pYxKXhGmwqnHS6wYl2l22mSCATl0lg4",
   authDomain: "us-only-chat.firebaseapp.com",
-  databaseURL: "https://us-only-chat-default-rtdb.firebaseio.com/",
+  databaseURL: "https://us-only-chat-default-rtdb.firebaseio.com",
   projectId: "us-only-chat",
-  storageBucket: "us-only-chat.firebasestorage.app",
+  storageBucket: "us-only-chat.appspot.com",
   messagingSenderId: "689509504923",
   appId: "1:689509504923:web:72a642773787d63d67f33e"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const gameRef = db.ref("realPvpGameV3");
+const gameRef = db.ref("coupleBattleStable");
 
 let currentUser = "";
+let roundProcessing = false;
 
 function login(){
     const pass = document.getElementById("password").value;
@@ -138,12 +129,11 @@ function login(){
     document.getElementById("loginCard").classList.add("hidden");
     document.getElementById("gameCard").classList.remove("hidden");
     document.getElementById("welcomeText").innerText = "Welcome " + currentUser + " 💖";
-
-    document.getElementById("bgMusic").play();
 }
 
-function choose(choice){
+function chooseMove(choice){
     gameRef.child("moves/" + currentUser).set(choice);
+    document.getElementById("status").innerText = "Waiting for other player...";
 }
 
 gameRef.on("value", snapshot => {
@@ -154,33 +144,18 @@ gameRef.on("value", snapshot => {
     document.getElementById("alexisScore").innerText = scores.Alexis;
     document.getElementById("regineScore").innerText = scores.Regine;
 
-    if(moves.Alexis && moves.Regine){
-        dramaticReveal(moves.Alexis, moves.Regine, scores);
+    if(moves.Alexis && moves.Regine && !roundProcessing){
+        roundProcessing = true;
+        processRound(moves.Alexis, moves.Regine, scores);
     }
 });
 
-function dramaticReveal(aMove, rMove, scores){
-    let count = 3;
-    const cd = document.getElementById("countdown");
-    cd.innerText = count;
+function processRound(aMove, rMove, scores){
 
-    const interval = setInterval(()=>{
-        count--;
-        if(count > 0){
-            cd.innerText = count;
-        } else {
-            clearInterval(interval);
-            cd.innerText = "Reveal!";
-            determineWinner(aMove, rMove, scores);
-        }
-    },700);
-}
-
-function determineWinner(aMove, rMove, scores){
     let winner = "";
 
     if(aMove === rMove){
-        document.getElementById("result").innerText = "It's a Tie 😆";
+        document.getElementById("result").innerText = "Tie 😆";
     } else if(
         (aMove === "rock" && rMove === "scissors") ||
         (aMove === "paper" && rMove === "rock") ||
@@ -198,10 +173,12 @@ function determineWinner(aMove, rMove, scores){
     gameRef.child("scores").set(scores);
     gameRef.child("moves").remove();
 
-    unlockMessages(scores, winner);
+    unlockMessage(scores, winner);
+
+    setTimeout(()=>{ roundProcessing = false; },1000);
 }
 
-function unlockMessages(scores, winner){
+function unlockMessage(scores, winner){
     const total = scores.Alexis + scores.Regine;
     const box = document.getElementById("secretMessage");
     let message = "";
@@ -217,7 +194,7 @@ function unlockMessages(scores, winner){
     }
 
     if(winner === "Regine" && currentUser === "Regine"){
-        message += "\n\nPrivate: I secretly love it when you win. It’s cute 😏💕";
+        message += "\n\nPrivate: I love it when you win. It’s cute 😏💕";
     }
 
     if(message !== ""){
